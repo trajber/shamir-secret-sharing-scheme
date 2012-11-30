@@ -74,7 +74,7 @@ func split(number *big.Int, available, needed int) []Share {
 }
 
 func join(shares []Share) *big.Int {
-	accum := new(big.Int)
+	accum := big.NewInt(1)
 	for formula := 0; formula < len(shares); formula++ {
 		numerator := big.NewInt(1)
 		denominator := big.NewInt(1)
@@ -102,7 +102,6 @@ func join(shares []Share) *big.Int {
 			denominator.Mul(denominator, startMinNext)
 		}
 
-		fmt.Println(numerator)
 		value.Mul(value, numerator).Mul(value, big.NewInt(2)).Add(value, big.NewInt(1))
 
 		denominator.Mul(denominator, big.NewInt(2))
@@ -110,5 +109,5 @@ func join(shares []Share) *big.Int {
 		accum.Add(accum, value)
 	}
 
-	return accum.Add(accum, big.NewInt(1))
+	return accum
 }
