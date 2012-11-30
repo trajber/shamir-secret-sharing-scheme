@@ -78,7 +78,8 @@ func join(shares []Share) *big.Int {
 	for formula := 0; formula < len(shares); formula++ {
 		numerator := big.NewInt(1)
 		denominator := big.NewInt(1)
-		value := big.NewInt(0)
+		value := new(big.Int)
+		value.Set(shares[formula].Part)
 
 		for count := 0; count < len(shares); count++ {
 			if formula == count {
@@ -86,25 +87,17 @@ func join(shares []Share) *big.Int {
 			}
 
 			startposition := big.NewInt(int64(shares[formula].ID))
-
-			value.Set(shares[formula].Part)
-
 			nextposition := big.NewInt(int64(shares[count].ID))
-
 			negnextpos := new(big.Int)
 			negnextpos.Neg(nextposition)
 
 			numerator.Mul(numerator, negnextpos)
-
-			startMinNext := new(big.Int)
-			startMinNext.Sub(startposition, nextposition)
-
-			denominator.Mul(denominator, startMinNext)
+			denominator.Mul(denominator, startposition.Sub(startposition, nextposition))
 		}
 
 		value.Mul(value, numerator).Mul(value, big.NewInt(2)).Add(value, big.NewInt(1))
-
 		denominator.Mul(denominator, big.NewInt(2))
+
 		value.Div(value, denominator)
 		accum.Add(accum, value)
 	}
