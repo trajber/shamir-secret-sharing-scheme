@@ -10,7 +10,7 @@ import (
 
 type Share struct {
 	Part *big.Int
-	ID   int
+	ID   int64
 }
 
 func main() {
@@ -55,8 +55,7 @@ func split(number *big.Int, available, needed int) []Share {
 		accum.Set(coef[0])
 		for exp := 1; exp < needed; exp++ {
 			p := math.Pow(float64(x), float64(exp))
-			w := new(big.Int)
-			w = w.SetInt64(int64(p))
+			w := big.NewInt(int64(p))
 
 			r := new(big.Int)
 			r.Mul(coef[exp], w)
@@ -66,7 +65,7 @@ func split(number *big.Int, available, needed int) []Share {
 
 		s := new(big.Int)
 		s.Set(accum)
-		share := Share{Part: s, ID: x}
+		share := Share{Part: s, ID: int64(x)}
 		shares = append(shares, share)
 	}
 
@@ -86,8 +85,8 @@ func join(shares []Share) *big.Int {
 				continue
 			}
 
-			startposition := big.NewInt(int64(shares[formula].ID))
-			nextposition := big.NewInt(int64(shares[count].ID))
+			startposition := big.NewInt(shares[formula].ID)
+			nextposition := big.NewInt(shares[count].ID)
 			negnextpos := new(big.Int)
 			negnextpos.Neg(nextposition)
 
