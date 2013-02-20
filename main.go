@@ -1,16 +1,62 @@
 package main
 
 import (
+	"bytes"
 	"code.google.com/p/go.crypto/ssh/terminal"
+	"encoding/base64"
 	"fmt"
 	"math"
 	"math/big"
 	"math/rand"
+	"time"
 )
 
 type Share struct {
 	Part *big.Int
 	ID   int64
+}
+
+func ShareToBase64(share Share) string {
+	buff := new(bytes.Buffer)
+	buff.WriteByte(byte(share.ID))
+	buff.Write(share.Part.Bytes())
+
+	return base64.StdEncoding.EncodeToString(buff.Bytes())
+}
+
+func Base64ToShare(share string) Share {
+	decoded, _ := base64.StdEncoding.DecodeString(share)
+	buff := bytes.NewBuffer(decoded).Bytes()
+	id := int64(buff[0])
+	b := buff[1:]
+
+	part := new(big.Int)
+	part.SetBytes(b)
+	return Share{ID: id, Part: part}
+}
+
+func EasySplit(secret string, available, needed int) []string {
+	shared := new(big.Int)
+	shared.SetBytes([]byte(secret))
+	parts := split(shared, available, needed)
+
+	partsEncoded := make([]string, 0)
+	for _, p := range parts {
+		partsEncoded = append(partsEncoded, ShareToBase64(p))
+	}
+
+	return partsEncoded
+}
+
+func EasyJoin(parts []string) string {
+	shares := make([]Share, 0)
+	for _, v := range parts {
+		shares = append(shares, Base64ToShare(v))
+	}
+
+	result := join(shares)
+	data := result.Bytes()
+	return string(data)
 }
 
 func main() {
@@ -20,23 +66,15 @@ func main() {
 		panic(err)
 	}
 
-	shared := new(big.Int)
-	shared.SetBytes(input)
-
-	fmt.Println(shared)
-
-	parts := split(shared, 6, 3)
+	secret := string(input)
+	parts := EasySplit(secret, 6, 3)
 
 	fmt.Println(parts)
 
-	newshares := []Share{parts[1], parts[2], parts[5]}
+	newshares := []string{parts[1], parts[2], parts[5]}
+	result := EasyJoin(newshares)
 
-	result := join(newshares)
 	fmt.Println(result)
-
-	data := result.Bytes()
-
-	fmt.Println(string(data))
 }
 
 func split(number *big.Int, available, needed int) []Share {
@@ -45,7 +83,9 @@ func split(number *big.Int, available, needed int) []Share {
 
 	coef = append(coef, number)
 
+	rand.Seed(time.Now().Unix())
 	for i := 1; i < needed; i++ {
+
 		c := big.NewInt(rand.Int63())
 		coef = append(coef, c)
 	}
@@ -73,6 +113,7 @@ func split(number *big.Int, available, needed int) []Share {
 }
 
 func join(shares []Share) *big.Int {
+	zero := big.NewInt(0)
 	accum := big.NewInt(1)
 	for formula := 0; formula < len(shares); formula++ {
 		numerator := big.NewInt(1)
@@ -91,10 +132,19 @@ func join(shares []Share) *big.Int {
 			negnextpos.Neg(nextposition)
 
 			numerator.Mul(numerator, negnextpos)
-			denominator.Mul(denominator, startposition.Sub(startposition, nextposition))
+			denominator.Mul(denominator,
+				startposition.Sub(startposition, nextposition))
+
 		}
 
-		value.Mul(value, numerator).Mul(value, big.NewInt(2)).Add(value, big.NewInt(1))
+		value.Mul(value, numerator).Mul(value, big.NewInt(2))
+
+		if denominator.Cmp(zero) < 0 {
+			value.Add(value, big.NewInt(2))
+		} else {
+			value.Add(value, big.NewInt(1))
+		}
+
 		denominator.Mul(denominator, big.NewInt(2))
 
 		value.Div(value, denominator)
